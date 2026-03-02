@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -90,6 +91,7 @@ public class RadialWrenchMenu extends AbstractSimiScreen {
 
 	private final BlockState state;
 	private final BlockPos pos;
+	@Nullable
 	private final BlockEntity blockEntity;
 	private final Level level;
 	private final NonVisualizationLevel nonVisualizationLevel;
@@ -273,14 +275,13 @@ public class RadialWrenchMenu extends AbstractSimiScreen {
 			poseStack.translate(0, 0, 100);
 
 			try {
-				Level previousLevel = blockEntity.getLevel();
-				blockEntity.setLevel(nonVisualizationLevel);
-				GuiGameElement.of(blockState, blockEntity)
-					.rotateBlock(player.getXRot(), player.getYRot() + 180, 0f)
-					.scale(24)
-					.at(-12, 12)
-					.render(graphics);
-				blockEntity.setLevel(previousLevel);
+				withLevel(blockEntity, nonVisualizationLevel,
+					() -> GuiGameElement.of(blockState, blockEntity)
+						.rotateBlock(player.getXRot(), player.getYRot() + 180, 0f)
+						.scale(24)
+						.at(-12, 12)
+						.render(graphics)
+				);
 			} catch (Exception e) {
 				Create.LOGGER.warn("Failed to render blockstate in RadialWrenchMenu", e);
 				allStates.remove(i);
@@ -356,6 +357,25 @@ public class RadialWrenchMenu extends AbstractSimiScreen {
 		}
 
 		onClose();
+	}
+
+	private void withLevel(@Nullable BlockEntity blockEntity, Level newLevel, Runnable action) {
+		boolean hasBlockEntity = blockEntity != null;
+
+		Level originalLevel = null;
+		if (hasBlockEntity) {
+			originalLevel = blockEntity.getLevel();
+			blockEntity.setLevel(newLevel);
+		}
+
+		try {
+			action.run();
+		} finally {
+			if (hasBlockEntity) {
+				//noinspection DataFlowIssue
+				blockEntity.setLevel(originalLevel);
+			}
+		}
 	}
 
 	@Override
